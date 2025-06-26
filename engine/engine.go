@@ -18,6 +18,7 @@ import (
 	"github.com/berachain/beacon-kit/primitives/version"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -156,7 +157,7 @@ func ExecutableDataToBlockWithDifficulty(data engine.ExecutableData, difficulty 
 		TxHash:           types.DeriveSha(types.Transactions(txs), trie.NewStackTrie(nil)),
 		ReceiptHash:      data.ReceiptsRoot,
 		Bloom:            types.BytesToBloom(data.LogsBloom),
-		Difficulty:       difficulty,
+		Difficulty:       big.NewInt(0),
 		Number:           new(big.Int).SetUint64(data.Number),
 		GasLimit:         data.GasLimit,
 		GasUsed:          data.GasUsed,
@@ -170,13 +171,19 @@ func ExecutableDataToBlockWithDifficulty(data engine.ExecutableData, difficulty 
 		ParentBeaconRoot: beaconRoot,
 		RequestsHash:     requestsHash,
 	}
+	temp := types.NewBlockWithHeader(header).
+		WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
+		WithWitness(data.ExecutionWitness)
+	if temp.Hash() != data.BlockHash {
+		return nil, fmt.Errorf("blockhash mismatch, want %x, got %x", data.BlockHash, temp.Hash())
+	}
+	header.Difficulty = difficulty
+	// TODO: FIX BLOCK NONCE, Need to be calculated by clique.prepare
+	header.Nonce = types.BlockNonce(hexutil.MustDecode("0xffffffffffffffff"))
 	block := types.NewBlockWithHeader(header).
 		WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
 		WithWitness(data.ExecutionWitness)
 
-	if block.Hash() != data.BlockHash {
-		return nil, fmt.Errorf("blockhash mismatch, want %x, got %x", data.BlockHash, block.Hash())
-	}
 	return block, nil
 }
 

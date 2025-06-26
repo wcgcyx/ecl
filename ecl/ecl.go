@@ -3,7 +3,6 @@ package ecl
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/berachain/beacon-kit/execution/client/ethclient"
@@ -65,8 +64,9 @@ func (ecl *EmbeddedClique) MiningLoop(ctx context.Context, prvBlkHash common.Has
 			}
 
 			br := common.Hash{}
-			// TODO: Fix difficulty
-			blk, err := engine.ExecutableDataToBlockWithDifficulty(*ev, big.NewInt(1), []common.Hash{}, &br, nil)
+			// TODO: Fix difficulty, diff can be calculated alongside with block nonce with prepare.
+			diff := ecl.clique.CalcDifficulty(ecl.reader, ev.Timestamp, ecl.reader.GetHeaderByNumber(nextBlkNumber-1))
+			blk, err := engine.ExecutableDataToBlockWithDifficulty(*ev, diff, []common.Hash{}, &br, nil)
 			if err != nil {
 				panic(err)
 			}
